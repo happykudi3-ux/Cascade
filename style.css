@@ -184,6 +184,86 @@ textarea:focus, input[type="text"]:focus, button:focus-visible {
   margin-top: 14px;
 }
 
+/* ---------- automated intake panel ---------- */
+.auto-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.auto-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-border);
+  color: var(--text-muted);
+}
+.auto-badge[data-state="on"] { color: var(--advanced); border-color: var(--advanced); }
+.auto-badge[data-state="off"] { color: var(--text-muted); }
+
+.auto-panel__desc {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  max-width: 68ch;
+  margin: 0 0 20px;
+}
+.auto-panel__desc code {
+  font-family: var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.auto-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.field--inline { flex: 1; min-width: 220px; margin-bottom: 0; }
+
+.scan-status {
+  font-size: 13px;
+  color: var(--text-muted);
+  min-height: 18px;
+  margin: 8px 0 0;
+}
+.scan-status[data-tone="error"] { color: #f87171; }
+.scan-status[data-tone="ok"] { color: var(--advanced); }
+
+.recent-runs {
+  margin-top: 24px;
+  border-top: 1px solid var(--panel-border);
+  padding-top: 18px;
+}
+.recent-runs__title {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.recent-runs__empty { color: var(--text-muted); font-size: 13px; }
+
+.recent-runs__list { display: flex; flex-direction: column; gap: 8px; }
+
+.run-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+.run-item__time { font-family: var(--mono); color: var(--text-muted); white-space: nowrap; }
+.run-item__detail { color: var(--text); text-align: right; }
+
 /* ---------- results ---------- */
 .results__toolbar {
   display: flex;

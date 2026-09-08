@@ -150,6 +150,84 @@
     toggleTraceBtn.textContent = traceBox.hidden ? "Show agent trace" : "Hide agent trace";
   });
 
+  // ---------- automated intake panel ----------
+  const autoBadge = document.getElementById("autoBadge");
+  const adminKeyInput = document.getElementById("adminKey");
+  const scanNowBtn = document.getElementById("scanNowBtn");
+  const scanStatus = document.getElementById("scanStatus");
+  const recentRunsList = document.getElementById("recentRunsList");
+
+  function timeAgo(iso) {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.round(hours / 24)}d ago`;
+  }
+
+  function renderRuns(runs) {
+    if (!runs || runs.length === 0) {
+      recentRunsList.innerHTML = '<p class="recent-runs__empty">No runs yet.</p>';
+      return;
+    }
+    recentRunsList.innerHTML = runs
+      .map((r) => {
+        const detail = r.processed
+          ? `${r.processed} processed${r.deferred ? `, ${r.deferred} deferred` : ""}`
+          : (r.summary?.summary || "no new resumes");
+        return `<div class="run-item">
+          <span class="run-item__time">${timeAgo(r.timestamp)}</span>
+          <span class="run-item__detail">${escapeHtml(detail)}</span>
+        </div>`;
+      })
+      .join("");
+  }
+
+  async function loadRecentRuns() {
+    try {
+      const res = await fetch("/api/recent-runs");
+      const data = await res.json();
+      if (!data.configured) {
+        autoBadge.textContent = "not configured";
+        autoBadge.dataset.state = "off";
+        return;
+      }
+      autoBadge.textContent = "connected";
+      autoBadge.dataset.state = "on";
+      renderRuns(data.runs);
+    } catch {
+      autoBadge.textContent = "unavailable";
+      autoBadge.dataset.state = "off";
+    }
+  }
+  loadRecentRuns();
+
+  scanNowBtn.addEventListener("click", async () => {
+    scanNowBtn.disabled = true;
+    scanStatus.removeAttribute("data-tone");
+    scanStatus.textContent = "Scanning Inbox…";
+    try {
+      const headers = {};
+      const key = adminKeyInput.value.trim();
+      if (key) headers.Authorization = `Bearer ${key}`;
+      const res = await fetch("/api/scan-folder", { method: "POST", headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Scan failed.");
+      scanStatus.dataset.tone = "ok";
+      scanStatus.textContent = data.processed
+        ? `Processed ${data.processed} resume(s). ${data.deferred_to_next_run ? `${data.deferred_to_next_run} left for next run.` : ""}`
+        : data.message || "Scan complete — nothing new.";
+      loadRecentRuns();
+    } catch (err) {
+      scanStatus.dataset.tone = "error";
+      scanStatus.textContent = err.message || "Scan failed.";
+    } finally {
+      scanNowBtn.disabled = false;
+    }
+  });
+
   exportBtn.addEventListener("click", () => {
     if (!lastCandidates.length) return;
     const rows = lastCandidates.map((c) => ({

@@ -1,9 +1,11 @@
 {
   "name": "cascade-recruiting-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Cascade — an autonomous recruiting pipeline agent. Part of the HR agent portfolio.",
-  "scripts": {
-    "dev": "vercel dev"
+  "description": "Cascade — an autonomous recruiting pipeline agent, with an optional Google Drive auto-intake mode. Part of the HR agent portfolio.",
+  "dependencies": {
+    "googleapis": "^144.0.0",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.8.0"
   }
 }

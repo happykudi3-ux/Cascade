@@ -46,6 +46,36 @@
         <p class="error" id="errorMsg" hidden></p>
       </section>
 
+      <!-- AUTOMATED INTAKE -->
+      <section class="panel auto-panel">
+        <div class="auto-panel__head">
+          <h2 class="panel__title">Automated intake (Google Drive)</h2>
+          <span class="auto-badge" id="autoBadge">checking…</span>
+        </div>
+        <p class="auto-panel__desc">
+          Drop resumes into the watched folder's <code>Inbox</code> and Cascade sorts them into
+          <code>Advanced</code>, <code>Flagged</code>, or <code>Rejected</code> on its own —
+          no pasting required. Runs on a schedule; you can also trigger a check manually below.
+        </p>
+
+        <div class="auto-controls">
+          <label class="field field--inline">
+            <span class="field__label">Admin key (only if you set CRON_SECRET)</span>
+            <input type="password" id="adminKey" placeholder="leave blank if not configured" />
+          </label>
+          <button type="button" class="btn btn--ghost" id="scanNowBtn">Scan now</button>
+        </div>
+
+        <p class="scan-status" id="scanStatus"></p>
+
+        <div class="recent-runs">
+          <h3 class="recent-runs__title">Recent automated runs</h3>
+          <div id="recentRunsList" class="recent-runs__list">
+            <p class="recent-runs__empty">No runs yet.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- RESULTS -->
       <section class="results" id="results" hidden>
 
