@@ -1,3 +1,6 @@
+// Aggregates recent runs across every open role folder into one
+// chronological feed for the "Recent automated runs" panel.
+
 const drive = require("../lib/drive");
 
 module.exports = async (req, res) => {
@@ -6,16 +9,27 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const folderId = process.env.DRIVE_FOLDER_ID;
-  if (!folderId) {
+  const rootId = process.env.DRIVE_FOLDER_ID;
+  if (!rootId) {
     res.status(200).json({ configured: false, runs: [] });
     return;
   }
 
   try {
     const client = drive.getDriveClient();
-    const log = await drive.readJsonLog(client, folderId, "cascade-log.json");
-    res.status(200).json({ configured: true, runs: log.slice(-15).reverse() });
+    const roleFolders = await drive.listSubfolders(client, rootId);
+
+    const allRuns = [];
+    for (const folder of roleFolders) {
+      const log = await drive.readJsonLog(client, folder.id, "cascade-log.json");
+      for (const entry of log) {
+        allRuns.push({ ...entry, role: folder.name });
+      }
+    }
+
+    allRuns.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    res.status(200).json({ configured: true, runs: allRuns.slice(0, 20) });
   } catch (err) {
     res.status(500).json({ error: err.message || "Could not read run history." });
   }
