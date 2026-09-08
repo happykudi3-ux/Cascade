@@ -92,6 +92,7 @@ scan or 9 to get through everyone.
 - `api/open-roles.js` — lists currently-open roles for the apply form
 - `api/export-report.js` — flattens every role's every run into one Excel-ready list
 - `api/recent-runs.js` — feeds the automated-run history in the UI
+- `api/oauth-connect.js` / `api/oauth-callback.js` — one-time admin Google auth setup
 - `lib/agentCore.js` — the shared agent loop both entry points call
 - `lib/drive.js` — Google Drive API helpers, including locking
 - `lib/allocate.js` — fair per-run budget split across open roles
@@ -133,64 +134,102 @@ it up.
 - `api/scan-folder.js` — the automated endpoint. Scans `Inbox/`, runs the
   agent, sorts resumes into `Advanced/` / `Flagged/` / `Rejected/`.
 - `api/recent-runs.js` — feeds the "Recent automated runs" list in the UI.
-- New dependencies: `googleapis`, `pdf-parse`, `mammoth` — added to
-  `package.json`, Vercel installs them automatically on deploy.
+- `api/oauth-connect.js` / `api/oauth-callback.js` — one-time admin OAuth
+  setup (see below) — not used by candidates.
+- New dependencies: `googleapis`, `pdf-parse`, `mammoth`, `formidable` —
+  added to `package.json`, Vercel installs them automatically on deploy.
 
-### Why a Service Account instead of "Sign in with Google"
-A user OAuth flow (the "Sign in with Google" button you're used to) is
-built for multi-user apps and needs a consent screen, refresh token
-storage, and token refresh logic. Cascade only ever reads *your* Drive
-folder, so a Service Account is simpler: it's a robot account with its own
-email address, and you grant it access the exact same way you'd share a
-folder with a colleague — no login flow, no expiring tokens.
+### Why OAuth2-as-yourself instead of a Service Account (v2.1 — read this if you set up a Service Account earlier)
+The original version of this used a Service Account (a robot identity you
+share a folder with, like a colleague). That works fine for *reading* and
+*moving* files, but Google gives service accounts **zero storage quota of
+their own** — so the moment Cascade needs to create brand-new file
+content (the run lock, a role's first log file, and critically, every
+resume a candidate uploads through `apply.html`), Google refuses with
+`storageQuotaExceeded`. Folders are free (no bytes), and moving existing
+files is free (ownership never changes) — which is why setup and reading
+worked fine at first, and this only surfaced once real file creation was
+needed.
+
+Google's own suggested fixes (Shared Drives, domain-wide delegation) both
+require a paid Google Workspace subscription — not available on a
+personal Gmail account. The fix that works on any account: authorize
+Cascade to act as **your own** Google account instead, via a one-time
+OAuth consent you personally click through once. Every file it then
+creates just belongs to your normal Drive storage, like you'd uploaded it
+yourself — no quota issue, ever. Candidates still never see any Google
+login on `apply.html`; this consent is yours alone, done once, not
+per-candidate.
+
+If you already went through the Service Account setup: you can ignore/
+delete that service account in Google Cloud Console, and you no longer
+need to share any folder with anything — since Cascade now acts as you,
+it already sees anything in your own Drive.
 
 ### One-time setup
 1. **Google Cloud Console** (console.cloud.google.com) → create a project
    (or reuse one) → **APIs & Services → Library** → enable the
-   **Google Drive API**.
-2. **APIs & Services → Credentials → Create Credentials → Service Account**.
-   Give it any name (e.g. "cascade-agent"). No roles needed — Drive access
-   comes from folder sharing, not IAM roles.
-3. Open the new service account → **Keys → Add Key → Create new key → JSON**.
-   This downloads a `.json` file — keep it private, it's a credential.
-4. In Google Drive, create one **root folder** (e.g. `Cascade Hiring`).
-   Inside it, create **one subfolder per open role** (e.g.
-   `Senior Backend Engineer`, `Product Designer`). Inside each role
-   subfolder:
+   **Google Drive API** (skip if already enabled from a prior attempt).
+2. **APIs & Services → Google Auth Platform** (Google renamed/restructured
+   this from the old single-page "OAuth consent screen" into tabs —
+   Branding, **Audience**, Data Access, Clients). Go to the **Audience**
+   tab:
+   - Set **User type** to **External** (Internal requires a paid Google
+     Workspace account, not available on personal Gmail).
+   - Add your own Google account under **Test users**.
+   - **Click "Publish App"** to move publishing status from "Testing" to
+     "In production." **Do not skip this** — with the Drive scope we
+     request, Google expires the refresh token after exactly 7 days for
+     apps left in Testing status, which would silently break Cascade a
+     week after setup. Publishing (even without completing Google's
+     formal verification review, which isn't necessary since you're the
+     only user) fixes this. You'll see an "unverified app" warning during
+     the consent step later — that's expected and safe to click through
+     for your own app.
+3. **APIs & Services → Google Auth Platform → Clients → Create Client**.
+   Application type: **Web application**. Under **Authorized redirect
+   URIs**, add: `https://<your-vercel-app>.vercel.app/api/oauth-callback`
+   (use your actual deployed domain).
+4. Note the **Client ID** and **Client Secret** shown after creating it.
+5. In Google Drive, create one **root folder** (e.g. `Cascade Hiring`) —
+   anywhere in your own Drive, no sharing needed. Inside it, create **one
+   subfolder per open role** (e.g. `Senior Backend Engineer`,
+   `Product Designer`). Inside each role subfolder:
    - a file named **`job_description.txt`** with that role's JD text (a
-     Google Doc named exactly `job_description` also works) — this is what
-     marks the role as "open"; a subfolder without one is ignored
+     Google Doc named exactly `job_description` also works) — this is
+     what marks the role as "open"; a subfolder without one is ignored
    - `Inbox/` (empty — new resumes land here, whether dropped in manually
      or submitted through `apply.html`)
-   - `Advanced/`, `Flagged/`, `Rejected/` — optional, Cascade creates these
-     automatically on first run if they're missing
-5. **Share only the root folder** with the service account's email — it's
-   the `client_email` field in the JSON key, looks like
-   `cascade-agent@your-project.iam.gserviceaccount.com`. Give it **Editor**
-   access. Sharing the root is enough; access flows down to every role
-   subfolder inside it automatically, so opening a new role later is just
-   "create a subfolder," not "share it again."
+   - `Advanced/`, `Flagged/`, `Rejected/` — optional, Cascade creates
+     these automatically on first run if they're missing
 6. Copy the **root folder's** ID from its URL:
    `https://drive.google.com/drive/folders/`**`THIS_PART`**.
 7. In Vercel → Settings → Environment Variables, add:
-   - `GOOGLE_SERVICE_ACCOUNT_EMAIL` — the `client_email` from the JSON key
-   - `GOOGLE_PRIVATE_KEY` — the `private_key` field from the JSON key,
-     pasted as-is (it contains literal `\n` sequences — the code un-escapes
-     them, so don't try to convert them to real line breaks yourself)
-   - `DRIVE_FOLDER_ID` — the **root** folder's ID from step 6 (not a role
-     subfolder's ID)
+   - `GOOGLE_OAUTH_CLIENT_ID` — from step 4
+   - `GOOGLE_OAUTH_CLIENT_SECRET` — from step 4
+   - `DRIVE_FOLDER_ID` — the **root** folder's ID from step 6
+   - `OAUTH_SETUP_KEY` — any random string you make up (protects the
+     one-time connect link below from being used by anyone else)
    - `CRON_SECRET` — optional but recommended: a random 16+ character
      string. If you set this, the "Scan now" button needs the same value
      typed into the "Admin key" field to work.
-8. Redeploy.
+8. Redeploy so those env vars take effect.
+9. Visit `https://<your-app>.vercel.app/api/oauth-connect?key=<your OAUTH_SETUP_KEY>`
+   in your browser. This redirects to Google's consent screen — sign in
+   with the same Google account whose Drive you want to use, and approve
+   access.
+10. You'll land on a page showing a long **refresh token**. Copy it into
+    a new Vercel env var, `GOOGLE_OAUTH_REFRESH_TOKEN`, then redeploy one
+    more time.
+
+That's the whole one-time setup — after this, nothing about Drive auth
+needs touching again unless you revoke access from your Google Account
+settings.
 
 > **Upgrading from a single-role v1.x setup?** Your existing job folder
 > (with `job_description.txt`, `Inbox/`, etc. directly inside it) becomes
-> one role subfolder. Create a new empty root folder, move your existing
-> job folder inside it as the first role subfolder, share the new root
-> with the service account (the old direct share still works but is now
-> redundant), and update `DRIVE_FOLDER_ID` in Vercel to the new root's ID.
-
+> one role subfolder. Move it inside a new root folder alongside your
+> other role folders, and update `DRIVE_FOLDER_ID` to the new root's ID.
 
 ### Triggering scans: the Hobby-plan catch
 Vercel's built-in Cron Jobs are capped at **once per day** on the Hobby
@@ -211,16 +250,29 @@ If you later upgrade to Vercel Pro, just tighten the schedule in
 `vercel.json` (e.g. `*/15 * * * *`) and redeploy — no code changes needed.
 
 ### Things that can go wrong
-- **"GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_PRIVATE_KEY not set"** — check
-  both env vars are set and the private key wasn't accidentally trimmed.
-- **403 from Drive** — the folder isn't shared with the service account
-  email, or it was shared as Viewer instead of Editor.
+- **"GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, or
+  GOOGLE_OAUTH_REFRESH_TOKEN not set"** — one of the three OAuth env vars
+  is missing; walk through steps 7–10 again.
+- **`storageQuotaExceeded` / "Service Accounts do not have storage
+  quota"** — you're still on the old Service Account setup; switch to the
+  OAuth flow above.
+- **`invalid_grant` error appearing exactly ~7 days after setup** — the
+  OAuth app was left in "Testing" publishing status, which caps refresh
+  token life at 7 days for the Drive scope. Go to Google Auth Platform →
+  Audience → Publish App, then redo the `/api/oauth-connect` flow once
+  more to get a fresh, non-expiring refresh token.
+- **Google didn't return a refresh token** on the callback page — it only
+  sends one the first time you authorize, or after you explicitly revoke
+  and re-grant access. Go to
+  [Google Account → Security → Third-party access](https://myaccount.google.com/permissions),
+  remove Cascade's access, then visit the `/api/oauth-connect` link again.
 - **"No job_description.txt found"** — the file must be named exactly
   `job_description.txt` (or `.docx`, or a Google Doc titled exactly
-  `job_description`) and live in the folder root, not inside `Inbox/`.
+  `job_description`) and live in the role subfolder's root, not inside
+  `Inbox/`.
 - **Resumes not moving out of Inbox** — check the Vercel function logs for
-  the run; a Drive API error there (usually a permissions issue) will
-  leave files in place rather than silently losing them.
+  the run; a Drive API error there will leave files in place rather than
+  silently losing them.
 
 ## Multiple simultaneous openings (v2.0)
 The folder layout above already supports this — every role subfolder
@@ -240,8 +292,8 @@ belongs to.
 `apply.html` is a public page (no login required) where candidates pick
 an open role from a dropdown, enter their name and email, and upload
 their resume — it lands directly in that role's `Inbox` via
-`api/apply.js`, using the same service account, no Google sign-in
-required from the candidate.
+`api/apply.js`, using the same OAuth-authorized Drive connection as
+everything else, no Google sign-in required from the candidate.
 
 - **Share the link** — the admin dashboard's "Automated intake" panel
   shows the full URL (`your-app.vercel.app/apply.html`) with a copy
