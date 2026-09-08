@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cascade — Recruiting Pipeline Agent</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page">
+
+    <header class="header">
+      <div class="header__mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="28" height="28">
+          <path d="M4 6h24M4 6c0 6 4 8 8 8s8 2 8 8c0 4-3 6-6 6" stroke="var(--accent)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="header__text">
+        <h1>Cascade</h1>
+        <p>Recruiting pipeline agent — reads resumes, decides who advances, drafts the emails.</p>
+      </div>
+    </header>
+
+    <main class="layout">
+
+      <!-- INPUT -->
+      <section class="panel input-panel" id="inputPanel">
+        <h2 class="panel__title">Set up the run</h2>
+
+        <label class="field">
+          <span class="field__label">Job description</span>
+          <textarea id="jobDescription" rows="6" placeholder="Paste the job description. Cascade will extract the requirements itself — you don't need to list them."></textarea>
+        </label>
+
+        <div class="field">
+          <span class="field__label">Candidates</span>
+          <div id="candidateList" class="candidate-list"></div>
+          <button type="button" class="btn btn--ghost" id="addCandidateBtn">+ Add candidate</button>
+        </div>
+
+        <div class="run-row">
+          <button type="button" class="btn btn--primary" id="runBtn">Run Cascade</button>
+          <span class="run-hint">Up to 12 candidates per run.</span>
+        </div>
+
+        <p class="error" id="errorMsg" hidden></p>
+      </section>
+
+      <!-- RESULTS -->
+      <section class="results" id="results" hidden>
+
+        <div class="results__toolbar">
+          <div class="summary" id="summaryBox"></div>
+          <div class="toolbar__actions">
+            <button type="button" class="btn btn--ghost" id="toggleTraceBtn">Show agent trace</button>
+            <button type="button" class="btn btn--ghost" id="exportBtn">Export to Excel</button>
+          </div>
+        </div>
+
+        <div class="trace" id="traceBox" hidden></div>
+
+        <div class="board" id="board">
+          <div class="column" data-stage="scoring">
+            <h3 class="column__title">In progress <span class="column__count" id="count-scoring">0</span></h3>
+            <div class="column__cards" id="cards-scoring"></div>
+          </div>
+          <div class="column" data-stage="advanced">
+            <h3 class="column__title">Advanced <span class="column__count" id="count-advanced">0</span></h3>
+            <div class="column__cards" id="cards-advanced"></div>
+          </div>
+          <div class="column" data-stage="flagged">
+            <h3 class="column__title">Flagged for review <span class="column__count" id="count-flagged">0</span></h3>
+            <div class="column__cards" id="cards-flagged"></div>
+          </div>
+          <div class="column" data-stage="rejected">
+            <h3 class="column__title">Not progressing <span class="column__count" id="count-rejected">0</span></h3>
+            <div class="column__cards" id="cards-rejected"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- candidate card template -->
+  <template id="candidateInputTpl">
+    <div class="candidate-input">
+      <input type="text" class="candidate-input__name" placeholder="Candidate name" />
+      <textarea class="candidate-input__resume" rows="3" placeholder="Paste resume text"></textarea>
+      <button type="button" class="candidate-input__remove" aria-label="Remove candidate">×</button>
+    </div>
+  </template>
+
+  <script src="libs/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

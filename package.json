@@ -1,0 +1,9 @@
+{
+  "name": "cascade-recruiting-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cascade — an autonomous recruiting pipeline agent. Part of the HR agent portfolio.",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
