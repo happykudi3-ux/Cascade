@@ -55,8 +55,17 @@
         <p class="auto-panel__desc">
           Drop resumes into the watched folder's <code>Inbox</code> and Cascade sorts them into
           <code>Advanced</code>, <code>Flagged</code>, or <code>Rejected</code> on its own —
-          no pasting required. Runs on a schedule; you can also trigger a check manually below.
+          no pasting required. Supports multiple open roles at once, each in its own subfolder.
+          Runs on a schedule; you can also trigger a check manually below.
         </p>
+
+        <div class="apply-link-row">
+          <span class="field__label">Candidate application link</span>
+          <div class="apply-link-box">
+            <code id="applyLinkText">loading…</code>
+            <button type="button" class="btn btn--ghost" id="copyApplyLinkBtn">Copy</button>
+          </div>
+        </div>
 
         <div class="auto-controls">
           <label class="field field--inline">
@@ -64,6 +73,7 @@
             <input type="password" id="adminKey" placeholder="leave blank if not configured" />
           </label>
           <button type="button" class="btn btn--ghost" id="scanNowBtn">Scan now</button>
+          <button type="button" class="btn btn--ghost" id="downloadReportBtn">Download full report (Excel)</button>
         </div>
 
         <p class="scan-status" id="scanStatus"></p>

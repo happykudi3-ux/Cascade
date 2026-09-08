@@ -152,8 +152,23 @@
 
   // ---------- automated intake panel ----------
   const autoBadge = document.getElementById("autoBadge");
+  const applyLinkText = document.getElementById("applyLinkText");
+  const copyApplyLinkBtn = document.getElementById("copyApplyLinkBtn");
+
+  applyLinkText.textContent = `${window.location.origin}/apply.html`;
+  copyApplyLinkBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(applyLinkText.textContent);
+      copyApplyLinkBtn.textContent = "Copied!";
+      setTimeout(() => (copyApplyLinkBtn.textContent = "Copy"), 1500);
+    } catch {
+      // clipboard API can fail on non-HTTPS/local contexts — text is still selectable manually
+    }
+  });
+
   const adminKeyInput = document.getElementById("adminKey");
   const scanNowBtn = document.getElementById("scanNowBtn");
+  const downloadReportBtn = document.getElementById("downloadReportBtn");
   const scanStatus = document.getElementById("scanStatus");
   const recentRunsList = document.getElementById("recentRunsList");
 
@@ -179,7 +194,7 @@
           : (r.summary?.summary || "no new resumes");
         return `<div class="run-item">
           <span class="run-item__time">${timeAgo(r.timestamp)}</span>
-          <span class="run-item__detail">${escapeHtml(detail)}</span>
+          <span class="run-item__detail"><b>${escapeHtml(r.role || "")}</b> — ${escapeHtml(detail)}</span>
         </div>`;
       })
       .join("");
@@ -207,7 +222,7 @@
   scanNowBtn.addEventListener("click", async () => {
     scanNowBtn.disabled = true;
     scanStatus.removeAttribute("data-tone");
-    scanStatus.textContent = "Scanning Inbox…";
+    scanStatus.textContent = "Scanning all open roles…";
     try {
       const headers = {};
       const key = adminKeyInput.value.trim();
@@ -215,16 +230,47 @@
       const res = await fetch("/api/scan-folder", { method: "POST", headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Scan failed.");
+
       scanStatus.dataset.tone = "ok";
-      scanStatus.textContent = data.processed
-        ? `Processed ${data.processed} resume(s). ${data.deferred_to_next_run ? `${data.deferred_to_next_run} left for next run.` : ""}`
-        : data.message || "Scan complete — nothing new.";
+      if (!data.roles || data.roles.length === 0) {
+        scanStatus.textContent = "Scan complete — no open roles found.";
+      } else {
+        scanStatus.textContent = data.roles
+          .map((r) => `${r.role}: ${r.processed} processed${r.deferred ? `, ${r.deferred} waiting` : ""}`)
+          .join("  •  ");
+      }
       loadRecentRuns();
     } catch (err) {
       scanStatus.dataset.tone = "error";
       scanStatus.textContent = err.message || "Scan failed.";
     } finally {
       scanNowBtn.disabled = false;
+    }
+  });
+
+  downloadReportBtn.addEventListener("click", async () => {
+    downloadReportBtn.disabled = true;
+    const originalText = downloadReportBtn.textContent;
+    downloadReportBtn.textContent = "Building report…";
+    try {
+      const res = await fetch("/api/export-report");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not build report.");
+      if (!data.candidates || data.candidates.length === 0) {
+        scanStatus.dataset.tone = "error";
+        scanStatus.textContent = "No processed candidates yet — run a scan first.";
+        return;
+      }
+      const ws = XLSX.utils.json_to_sheet(data.candidates);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Cascade Full Report");
+      XLSX.writeFile(wb, "cascade-full-report.xlsx");
+    } catch (err) {
+      scanStatus.dataset.tone = "error";
+      scanStatus.textContent = err.message || "Could not build report.";
+    } finally {
+      downloadReportBtn.disabled = false;
+      downloadReportBtn.textContent = originalText;
     }
   });
 

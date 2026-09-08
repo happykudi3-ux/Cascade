@@ -1,11 +1,12 @@
 {
   "name": "cascade-recruiting-agent",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Cascade — an autonomous recruiting pipeline agent, with an optional Google Drive auto-intake mode. Part of the HR agent portfolio.",
+  "description": "Cascade — an autonomous recruiting pipeline agent with automated Google Drive intake across multiple simultaneous job openings. Part of the HR agent portfolio.",
   "dependencies": {
     "googleapis": "^144.0.0",
     "pdf-parse": "^1.1.1",
-    "mammoth": "^1.8.0"
+    "mammoth": "^1.8.0",
+    "formidable": "^3.5.1"
   }
 }

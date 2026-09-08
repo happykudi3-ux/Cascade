@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apply — Careers</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  body { display: flex; justify-content: center; padding: 60px 20px; }
+  .apply-card {
+    max-width: 480px;
+    width: 100%;
+  }
+  .apply-card h1 {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .apply-card p.intro {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin: 0 0 28px;
+  }
+  select {
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+  input[type="file"] {
+    background: var(--bg);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+  .confirmation {
+    text-align: center;
+    padding: 40px 0;
+  }
+  .confirmation h2 {
+    font-family: var(--sans);
+    font-size: 18px;
+    color: var(--advanced);
+    margin: 0 0 8px;
+  }
+  .confirmation p { color: var(--text-muted); font-size: 14px; }
+  .submit-error {
+    color: #f87171;
+    font-size: 13px;
+    margin-top: 14px;
+  }
+  .no-roles { color: var(--text-muted); font-size: 14px; }
+</style>
+</head>
+<body>
+  <div class="apply-card panel" id="applyCard">
+    <h1>Apply for a role</h1>
+    <p class="intro">Fill this in and we'll take it from here — no account needed.</p>
+
+    <form id="applyForm">
+      <label class="field">
+        <span class="field__label">Role</span>
+        <select id="roleSelect" required>
+          <option value="" disabled selected>Loading open roles…</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field__label">Full name</span>
+        <input type="text" id="nameInput" required />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Email</span>
+        <input type="email" id="emailInput" required />
+      </label>
+
+      <label class="field">
+        <span class="field__label">Resume (PDF or Word, under 8MB)</span>
+        <input type="file" id="resumeInput" accept=".pdf,.doc,.docx" required />
+      </label>
+
+      <button type="submit" class="btn btn--primary" id="submitBtn" style="width: 100%; margin-top: 8px;">
+        Submit application
+      </button>
+      <p class="submit-error" id="submitError" hidden></p>
+    </form>
+
+    <div class="confirmation" id="confirmation" hidden>
+      <h2>Application received</h2>
+      <p>Thanks for applying — we'll be in touch if it's a fit.</p>
+    </div>
+  </div>
+
+  <script>
+    const roleSelect = document.getElementById("roleSelect");
+    const applyForm = document.getElementById("applyForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const submitError = document.getElementById("submitError");
+    const applyCard = document.getElementById("applyCard");
+    const confirmation = document.getElementById("confirmation");
+
+    async function loadRoles() {
+      try {
+        const res = await fetch("/api/open-roles");
+        const data = await res.json();
+        roleSelect.innerHTML = "";
+        if (!data.roles || data.roles.length === 0) {
+          roleSelect.innerHTML = '<option value="" disabled selected>No roles currently open</option>';
+          submitBtn.disabled = true;
+          return;
+        }
+        roleSelect.innerHTML =
+          '<option value="" disabled selected>Choose a role</option>' +
+          data.roles.map((r) => `<option value="${r.replace(/"/g, "&quot;")}">${r}</option>`).join("");
+      } catch {
+        roleSelect.innerHTML = '<option value="" disabled selected>Could not load roles — refresh to retry</option>';
+        submitBtn.disabled = true;
+      }
+    }
+    loadRoles();
+
+    applyForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      submitError.hidden = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting…";
+
+      const formData = new FormData();
+      formData.append("role", roleSelect.value);
+      formData.append("name", document.getElementById("nameInput").value.trim());
+      formData.append("email", document.getElementById("emailInput").value.trim());
+      const file = document.getElementById("resumeInput").files[0];
+      if (file) formData.append("resume", file);
+
+      try {
+        const res = await fetch("/api/apply", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not submit application.");
+        applyForm.hidden = true;
+        confirmation.hidden = false;
+      } catch (err) {
+        submitError.textContent = err.message || "Something went wrong. Please try again.";
+        submitError.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit application";
+      }
+    });
+  </script>
+</body>
+</html>

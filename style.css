@@ -219,6 +219,26 @@ textarea:focus, input[type="text"]:focus, button:focus-visible {
   font-size: 12.5px;
 }
 
+.apply-link-row { margin-bottom: 20px; }
+.apply-link-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.apply-link-box code {
+  font-family: var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
 .auto-controls {
   display: flex;
   align-items: flex-end;
